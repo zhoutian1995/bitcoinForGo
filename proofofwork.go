@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/gob"
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 )
@@ -14,7 +12,7 @@ var (
 	maxNonce = math.MaxInt64	//最大的64位整数
 )
 
-const targetBits = 24 	//对比位数，实际上是难度
+const targetBits = 10 	//对比位数，实际上是难度
 
 type ProofofWork struct {
 	block *Block 	//区块
@@ -37,12 +35,13 @@ func (pow * ProofofWork)prepareData(nonce int) []byte{
 			InttoHex(pow.block.Timestamp),	//时间十六进制
 			InttoHex(int64(targetBits)),	//位数十六进制
 			InttoHex(int64(nonce)),	//保存工作量的nonce
-		},[]byte{},
+		},
+		[]byte{},
 		)
 	return data
 }
 //挖矿执行
-func  (pow * ProofofWork) Run()(int,[]byte){
+func  (pow * ProofofWork) Run()(int, []byte){
 	var hashInt big.Int
 	var hash [32]byte
 	nonce := 0
@@ -62,35 +61,16 @@ func  (pow * ProofofWork) Run()(int,[]byte){
 	return nonce,hash[:]
 }
 //校验挖矿是不是真的成功
-func (pow * ProofofWork) Vaildata() bool{
+func (pow * ProofofWork) Vaildate() bool{
 	var hashInt big.Int
+
 	data := pow.prepareData(pow.block.Nonce)	//准备好数据
 	hash := sha256.Sum256(data)	//计算出哈希
 	hashInt.SetBytes(hash[:])
-	isValid := (hashInt.Cmp(pow.target) == -1)//校验数据 比100000000小就是代表左边有几个0
+
+	isValid := hashInt.Cmp(pow.target) == -1//校验数据 比100000000小就是代表左边有几个0
 
 	return isValid
-}
-
-//把对象转化为二进制字节集，可以写入文件
-func (block *Block) serialize() []byte{
-	var result bytes.Buffer	//开辟内存存放字节集合
-	encoder := gob.NewEncoder(&result)	//编码对象创建
-	err := encoder.Encode(block)	//编码操作
-	if err != nil{
-		log.Panic(err)	//处理错误
-	}
-	return result.Bytes()
-}
-//读取文件读到二进制字节并集合转化为对象
-func DeserializeBlock(data []byte) *Block{
-	var block Block	//创建存储用于字节转化的对象
-	decoder := gob.NewDecoder(bytes.NewReader(data))//解码
-	err := decoder.Decode(&block)	//尝试解码
-	if err != nil{
-		log.Panic(err)
-	}
-	return &block
 }
 
 
