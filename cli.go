@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/labstack/gommon/log"
 	"os"
 	"strconv"
 )
@@ -11,10 +12,33 @@ import (
 type CLI struct {
 	blockchain *BlockChain
 }
+
+func (cli *CLI) createBlockChain(address string) {
+	bc := CreateBlockchain(address)
+	bc.db.Close()
+	fmt.Println("创建成功")
+}
+
+func (cli *CLI) getBalance(address string) {
+	bc := NewBlockChain(address)
+	defer bc.db.Close()
+
+	balance := 0
+	UTXOs := bc.FindUTXO(address)
+
+	for _, out := range UTXOs {
+		balance += out.Value	//查找UTXO中所有没有消费的金额，再进行累加
+	}
+
+	fmt.Printf("查询的金额如下 %s : %d\n", address, balance)
+}
+
 //用法
 func (cli *CLI) printUsage(){
 	fmt.Println("用法如下：")
-	fmt.Println("addBlock 向区块链增加块")
+	fmt.Println("getbalance -address 你输入的地址 根据地址查询金额")
+	fmt.Println("createblockchain -address 你输入的地址 根据地址创建区块链")
+	fmt.Println("send -from From -to To -amount Amount 转账")
 	fmt.Println("showBlock 显示区块")
 }
 
@@ -25,61 +49,102 @@ func (cli *CLI) validateArgs(){
 	}
 }
 
-func (cli *CLI) addBlock(data string){
-	cli.blockchain.AddBlock(data)	//增加一个区鲁哀
-	fmt.Println("区块增加成功")
-}
-
 func (cli *CLI)showBlockChain(){
-	bci := cli.blockchain.Iterator()//创建循环迭代器
-	for{
-		block := bci.Next()//取得下一个区块
-		fmt.Printf("prev hash = %x\n",block.PrevBlockHash)
-		fmt.Printf("data = %s\n",block.Data)
-		fmt.Printf("this hash= %x\n",block.Hash)
+	bc := NewBlockChain("")
+	defer bc.db.Close()
+
+	bci := bc.Iterator()	//迭代
+
+	for {
+		block := bci.Next()
+
+		fmt.Printf("上一块哈希: %x\n", block.PrevBlockHash)
+		fmt.Printf("当前Hash: %x\n", block.Hash)
 		pow := NewProofOfWork(block)
-		fmt.Printf("pow %s",strconv.FormatBool(pow.Vaildate()))
+		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Vaildate()))	//工作量证明
 		fmt.Println()
-		
-		if len(block.PrevBlockHash) == 0{//遇到创世区块
+
+		if len(block.PrevBlockHash) == 0 {	//创世区块
 			break
 		}
 	}
 }
 
+func (cli *CLI) send(from, to string, amount int) {
+	bc := NewBlockChain(from)
+	defer bc.db.Close()
+
+	tx := NewUTXOTransaciton(from, to, amount, bc)	//转账
+	bc.MineBlock([]*Transaction{tx})	//挖矿
+	fmt.Println("交易成功")
+}
 
 func (cli *CLI)Run(){
-	cli.validateArgs()//校验
-	
+	cli.validateArgs()	//校验
 	//处理命令行参数
-	addblockcmd := flag.NewFlagSet("addblck",flag.ExitOnError)
-	showchaincmd := flag.NewFlagSet("showchain",flag.ExitOnError)
-	addbBlockData := addblockcmd.String("data","","Block data")
+	getBalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)
+	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
+	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
+	showChainCmd := flag.NewFlagSet("printchain", flag.ExitOnError)
+
+	getBalanceAddress := getBalanceCmd.String("address", "", "查询的金额")
+	createBlockchainAddress := createBlockchainCmd.String("address", "", "查询的地址")
+	sendFrom := sendCmd.String("from", "", "谁给的")
+	sendTo := sendCmd.String("to", "", "给谁的")
+	sendAmount := sendCmd.Int("amount", 0, "金额")
+
 	switch os.Args[1] {
-	case "addblock":
-		err := addblockcmd.Parse(os.Args[2:])//解析参数
-		if err != nil{
-			fmt.Printf("1223")
+	case "getbalance":
+		err := getBalanceCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
 		}
-	case "showchain":
-		err := showchaincmd.Parse(os.Args[2:])//解析参数
-		if err != nil{
-			fmt.Printf("1223")
+	case "createblockchain":
+		err := createBlockchainCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+	case "showBlock":
+		err := showChainCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+	case "send":
+		err := sendCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
 		}
 	default:
 		cli.printUsage()
 		os.Exit(1)
 	}
-	if addblockcmd.Parsed(){
-		if *addbBlockData == ""{
-			addblockcmd.Usage()
+
+	if getBalanceCmd.Parsed() {
+		if *getBalanceAddress == "" {
+			getBalanceCmd.Usage()
 			os.Exit(1)
-		}else{
-			cli.addBlock(*addbBlockData)//增加区块
 		}
+		cli.getBalance(*getBalanceAddress)
 	}
 
-	if showchaincmd.Parsed() {
-		cli.showBlockChain()//显示区块链
+	if createBlockchainCmd.Parsed() {
+		if *createBlockchainAddress == "" {
+			createBlockchainCmd.Usage()
+			os.Exit(1)
+		}
+		cli.createBlockChain(*createBlockchainAddress)//创建区块链
+	}
+
+	if showChainCmd.Parsed() {
+		cli.showBlockChain()	//显示区块链
+	}
+
+	if sendCmd.Parsed() {
+		if *sendFrom == "" || *sendTo == "" || *sendAmount <= 0 {
+			sendCmd.Usage()
+			os.Exit(1)
+		}
+
+		cli.send(*sendFrom, *sendTo, *sendAmount)
 	}
 }

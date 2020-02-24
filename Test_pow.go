@@ -7,8 +7,9 @@ package main
 //ac2afd8c560d7f20c76513f77a909a73c4b486204cbf4235ba595ac7656fd776
 //												 00000000000000000
 
-/*
+
 func main()  {
+	/*
 	start := time.Now()
 	for i:=0;i < 1000000000000;i++{
 		data := sha256.Sum256([]byte(strconv.Itoa(i)))
@@ -20,6 +21,10 @@ func main()  {
 			break
 		}
 	}
+	var ID []byte
+	if ID == ([]byte){0}{
+		fmt.Println(ID)
+	}
+	*/
 
 }
-*/
