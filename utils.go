@@ -16,3 +16,10 @@ func InttoHex(num int64) []byte {
 
 	return buff.Bytes()	//返回字节集合
 }
+
+//字节反序
+func ReverseBytes(data []byte) {
+	for i, j := 0, len(data)-1; i < j; i, j = i+1, j-1 {
+		data[i], data[j] = data[j], data[i]
+	}
+}

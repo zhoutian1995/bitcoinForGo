@@ -33,6 +33,13 @@ func NewBlock(transcations []*Transaction ,prevBlockHash []byte)  *Block {
 
 	return block
 }
+
+
+//创建创世区块，意味着没有前一块
+func NewGenesisBlock(coinbase *Transaction)  *Block {
+	return NewBlock([]*Transaction{coinbase}, []byte{})
+}
+
 //对交易实现哈希计算
 func  (block *Block)HashTransactions()[]byte{
 	var txHashes [][]byte
@@ -47,13 +54,9 @@ func  (block *Block)HashTransactions()[]byte{
 }
 
 
-//创建创世区块，意味着没有前一块
-func NewGenesisBlock(coinbase *Transaction)  *Block {
-	return NewBlock([]*Transaction{coinbase}, []byte{})
-}
 
 //把对象转化为二进制字节集，可以写入文件
-func (block *Block) serialize() []byte{
+func (block *Block) Serialize() []byte{
 	var result bytes.Buffer	//开辟内存存放字节集合
 	encoder := gob.NewEncoder(&result)	//编码对象创建
 	err := encoder.Encode(block)	//编码操作

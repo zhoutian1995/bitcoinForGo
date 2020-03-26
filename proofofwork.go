@@ -62,7 +62,7 @@ func  (pow * ProofofWork) Run()(int, []byte){
 	return nonce,hash[:]
 }
 //校验挖矿是不是真的成功
-func (pow * ProofofWork) Vaildate() bool{
+func (pow * ProofofWork) Validate() bool{
 	var hashInt big.Int
 
 	data := pow.prepareData(pow.block.Nonce)	//准备好数据
